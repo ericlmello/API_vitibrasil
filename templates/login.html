@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <script>
+        function login() {
+            var username = document.getElementById("username").value;
+            var password = document.getElementById("password").value;
+
+            fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({username: username, password: password})
+            }).then(response => response.json())
+              .then(data => {
+                  if (data.access_token) {
+                      alert('Login realizado com sucesso!');
+                      localStorage.setItem('token', data.access_token);  // Armazena o token no localStorage
+                      document.getElementById('download-buttons').style.display = 'block';
+                      document.getElementById('table-view').style.display = 'block';
+                      document.getElementById('graph-view').style.display = 'block';  // Exibe o botão do gráfico
+                  } else {
+                      alert('Falha no login: ' + (data.msg || 'Erro desconhecido'));
+                  }
+              });
+        }
+
+        function downloadFile(fileType) {
+            var token = localStorage.getItem('token');  // Recupera o token do localStorage
+            if (!token) {
+                alert('Você precisa fazer login antes de baixar o arquivo.');
+                return;
+            }
+
+            fetch('/download/' + fileType, {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + token  // Inclui o token no cabeçalho
+                }
+            }).then(response => {
+                if (response.ok) {
+                    return response.blob();
+                } else if (response.status === 401) {
+                    throw new Error('Token inválido ou expirado. Faça login novamente.');
+                } else {
+                    throw new Error('Falha ao baixar o arquivo: ' + response.statusText);
+                }
+            }).then(blob => {
+                var url = window.URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = fileType + '.csv';
+                document.body.appendChild(a);  // Necessário para o Firefox
+                a.click();
+                a.remove();
+            }).catch(error => {
+                console.error('Erro:', error);
+                alert(error.message);
+            });
+        }
+
+        function downloadDimensaoPais() {
+            var token = localStorage.getItem('token');
+            if (!token) {
+                alert('Você precisa fazer login antes de baixar o arquivo.');
+                return;
+            }
+
+            fetch('/download/dimensao_pais', {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            }).then(response => {
+                if (response.ok) {
+                    return response.blob();
+                } else if (response.status === 401) {
+                    throw new Error('Token inválido ou expirado. Faça login novamente.');
+                } else {
+                    throw new Error('Falha ao baixar o arquivo: ' + response.statusText);
+                }
+            }).then(blob => {
+                var url = window.URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = 'dimensao_pais.csv';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            }).catch(error => {
+                console.error('Erro:', error);
+                alert(error.message);
+            });
+        }
+
+        function viewTable(fileType) {
+            var token = localStorage.getItem('token');  // Recupera o token do localStorage
+            if (!token) {
+                alert('Você precisa fazer login antes de visualizar o arquivo.');
+                return;
+            }
+
+            fetch('/view_csv/' + fileType, {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + token  // Inclui o token no cabeçalho
+                }
+            }).then(response => response.json())
+              .then(data => {
+                  if (data.table_html) {
+                      document.getElementById('csv-table').innerHTML = data.table_html;
+                  } else {
+                      alert('Falha ao carregar a tabela.');
+                  }
+              });
+        }
+
+        function viewGraph() {
+            var token = localStorage.getItem('token');  // Recupera o token do localStorage
+            if (!token) {
+                alert('Você precisa fazer login antes de visualizar o gráfico.');
+                return;
+            }
+
+            fetch('/analises', {  // Corrigido para '/analises'
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + token  // Inclui o token no cabeçalho
+                }
+            }).then(response => {
+                if (response.ok) {
+                    var img = document.createElement('img');
+                    img.src = '/static/graph.png';  // Presume que o gráfico será salvo como "graph.png"
+                    img.alt = 'Gráfico de Análise';
+                    document.getElementById('graph-container').innerHTML = '';
+                    document.getElementById('graph-container').appendChild(img);
+                } else {
+                    throw new Error('Falha ao carregar o gráfico.');
+                }
+            }).catch(error => {
+                console.error('Erro:', error);
+                alert(error.message);
+            });
+        }
+    </script>
+</head>
+<body style="font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f9;">
+
+    <div style="text-align: center; margin-bottom: 20px;">
+        <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Logo" style="max-width: 200px;">
+    </div>
+
+    <h2 style="text-align: center; color: #333;">Vitibrasil - Viticultura Brasileira</h2>
+
+    <form onsubmit="event.preventDefault(); login();" style="max-width: 400px; margin: 0 auto; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
+        <div style="margin-bottom: 15px;">
+            <label for="username" style="display: block; font-size: 14px; color: #555;">Usuário:</label>
+            <input type="text" id="username" name="username" required style="width: 100%; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+        <div style="margin-bottom: 20px;">
+            <label for="password" style="display: block; font-size: 14px; color: #555;">Senha:</label>
+            <input type="password" id="password" name="password" required style="width: 100%; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+        <button type="submit" style="width: 100%; padding: 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; font-size: 16px;">Login</button>
+    </form>
+
+    <div id="download-buttons" style="display: none; margin-top: 30px;">
+        <h2 style="text-align: center; color: #333;">Baixar Arquivos</h2>
+        <div style="text-align: center;">
+            <button onclick="downloadFile('Producao')" style="margin: 5px; padding: 10px 20px; background-color: #008CBA; color: white; border: none; border-radius: 4px;">Baixar Producao</button>
+            <button onclick="downloadFile('Processamento')" style="margin: 5px; padding: 10px 20px; background-color: #008CBA; color: white; border: none; border-radius: 4px;">Baixar Processamento</button>
+            <button onclick="downloadFile('Comercializacao')" style="margin: 5px; padding: 10px 20px; background-color: #008CBA; color: white; border: none; border-radius: 4px;">Baixar Comercializacao</button>
+            <button onclick="downloadFile('Importacao')" style="margin: 5px; padding: 10px 20px; background-color: #008CBA; color: white; border: none; border-radius: 4px;">Baixar Importacao</button>
+            <button onclick="downloadFile('Exportacao')" style="margin: 5px; padding: 10px 20px; background-color: #008CBA; color: white; border: none; border-radius: 4px;">Baixar Exportacao</button>
+            <button onclick="downloadDimensaoPais()" style="margin: 5px; padding: 10px 20px; background-color: #4909c0; color: white; border: none; border-radius: 4px;">Baixar Dimensão País para Análise</button>
+        </div>
+    </div>
+
+    <div id="table-view" style="display: none; margin-top: 30px;">
+        <h2 style="text-align: center; color: #333;">Visualizar Arquivos CSV</h2>
+        <div style="text-align: center;">
+            <button onclick="viewTable('Producao')" style="margin: 5px; padding: 10px 20px; background-color: #f44336; color: white; border: none; border-radius: 4px;">Visualizar Producao</button>
+            <button onclick="viewTable('Processamento')" style="margin: 5px; padding: 10px 20px; background-color: #f44336; color: white; border: none; border-radius: 4px;">Visualizar Processamento</button>
+            <button onclick="viewTable('Comercializacao')" style="margin: 5px; padding: 10px 20px; background-color: #f44336; color: white; border: none; border-radius: 4px;">Visualizar Comercializacao</button>
+            <button onclick="viewTable('Importacao')" style="margin: 5px; padding: 10px 20px; background-color: #f44336; color: white; border: none; border-radius: 4px;">Visualizar Importacao</button>
+            <button onclick="viewTable('Exportacao')" style="margin: 5px; padding: 10px 20px; background-color: #f44336; color: white; border: none; border-radius: 4px;">Visualizar Exportacao</button>
+        </div>
+    </div>
+
+    <div id="graph-view" style="display: none; margin-top: 30px;">
+        <h2 style="text-align: center; color: #333;">Visualizar Gráfico de Análise</h2>
+        <div style="text-align: center;">
+            <button onclick="viewGraph()" style="margin: 5px; padding: 10px 20px; background-color: #9C27B0; color: white; border: none; border-radius: 4px;">Visualizar Gráfico de Análise</button>
+        </div>
+    </div>
+
+    <div id="graph-container" style="text-align: center; margin-top: 20px;"></div>
+    <div id="csv-table" style="text-align: center; margin-top: 20px;"></div>
+
+</body>
+</html>
+
