@@ -8,3 +8,6 @@ matplotlib
 seaborn
 SQLAlchemy
 Werkzeug
+gunicorn
+flask_sqlalchemy
+psycopg2
